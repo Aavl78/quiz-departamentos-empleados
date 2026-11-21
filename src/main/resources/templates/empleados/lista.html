@@ -1,44 +1,80 @@
 <!DOCTYPE html>
-<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<html lang="es" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="UTF-8">
-    <title th:text="${modo == 'crear'} ? 'Nuevo departamento' : 'Editar departamento'">Departamento</title>
+    <title>Empleados</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
-<div class="container mt-4" style="max-width: 600px;">
-    <h4 th:text="${modo == 'crear'} ? 'Nuevo departamento' : 'Editar departamento'"></h4>
+<nav class="navbar navbar-dark bg-dark px-3">
+    <div class="d-flex align-items-center gap-3">
+        <span class="navbar-brand">Gestión</span>
+        <a class="nav-link text-white-50" th:href="@{/usuarios}" sec:authorize="hasRole('ADMIN')">Usuarios</a>
+        <a class="nav-link text-white-50" th:href="@{/departamentos}">Departamentos</a>
+        <a class="nav-link text-white" th:href="@{/empleados}">Empleados</a>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+        <span class="text-white">Hola, <b sec:authentication="name"></b></span>
+        <form th:action="@{/logout}" method="post">
+            <button class="btn btn-outline-light btn-sm">Salir</button>
+        </form>
+    </div>
+</nav>
 
+<div class="container mt-4">
+    <div th:if="${mensaje}" class="alert alert-success" th:text="${mensaje}"></div>
     <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
 
-    <!-- La URL de destino cambia según si creamos o editamos -->
-    <form th:object="${departamento}" method="post"
-          th:action="${modo == 'crear'} ? @{/departamentos/guardar} : @{/departamentos/{id}/actualizar(id=${departamento.id})}">
-
-        <div class="mb-3">
-            <label class="form-label">Nombre</label>
-            <input type="text" th:field="*{nombre}" class="form-control"
-                   th:classappend="${#fields.hasErrors('nombre')} ? 'is-invalid'">
-            <div class="invalid-feedback" th:errors="*{nombre}"></div>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">
+            <span th:if="${departamento == null}">Todos los empleados</span>
+            <span th:if="${departamento != null}" th:text="'Empleados de ' + ${departamento.nombre}"></span>
+        </h4>
+        <div class="d-flex gap-2">
+            <a th:if="${departamento != null}" th:href="@{/empleados}" class="btn btn-outline-secondary">Ver todos</a>
+            <!-- Sin filtro: nuevo empleado sin departamento preseleccionado -->
+            <a sec:authorize="hasRole('ADMIN')" th:if="${departamento == null}"
+               th:href="@{/empleados/nuevo}" class="btn btn-primary">+ Nuevo empleado</a>
+            <!-- Con filtro: nuevo empleado con el departamento ya elegido -->
+            <a sec:authorize="hasRole('ADMIN')" th:if="${departamento != null}"
+               th:href="@{/empleados/nuevo(departamentoId=${departamento.id})}" class="btn btn-primary">+ Nuevo empleado</a>
         </div>
+    </div>
 
-        <div class="mb-3">
-            <label class="form-label">Ubicación</label>
-            <input type="text" th:field="*{ubicacion}" class="form-control"
-                   th:classappend="${#fields.hasErrors('ubicacion')} ? 'is-invalid'">
-            <div class="invalid-feedback" th:errors="*{ubicacion}"></div>
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label">Presupuesto (₡)</label>
-            <input type="number" step="0.01" th:field="*{presupuesto}" class="form-control"
-                   th:classappend="${#fields.hasErrors('presupuesto')} ? 'is-invalid'">
-            <div class="invalid-feedback" th:errors="*{presupuesto}"></div>
-        </div>
-
-        <button type="submit" class="btn btn-primary">Guardar</button>
-        <a th:href="@{/departamentos}" class="btn btn-secondary">Cancelar</a>
-    </form>
+    <table class="table table-striped align-middle">
+        <thead class="table-dark">
+        <tr>
+            <th>ID</th><th>Nombre</th><th>Cédula</th><th>Email</th><th>Puesto</th>
+            <th>Salario</th><th>Ingreso</th><th>Departamento</th>
+            <th sec:authorize="hasRole('ADMIN')">Acciones</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="e : ${empleados}">
+            <td th:text="${e.id}"></td>
+            <td th:text="${e.nombre}"></td>
+            <td th:text="${e.cedula}"></td>
+            <td th:text="${e.email}"></td>
+            <td><span class="badge bg-info text-dark" th:text="${e.puesto.etiqueta}"></span></td>
+            <td th:text="'₡' + ${#numbers.formatDecimal(e.salario, 1, 'COMMA', 2, 'POINT')}"></td>
+            <td th:text="${#temporals.format(e.fechaIngreso, 'dd/MM/yyyy')}"></td>
+            <td>
+                <a th:href="@{/empleados(departamentoId=${e.departamento.id})}" th:text="${e.departamento.nombre}"></a>
+            </td>
+            <td sec:authorize="hasRole('ADMIN')">
+                <a th:href="@{/empleados/{id}/editar(id=${e.id})}" class="btn btn-sm btn-warning">Editar</a>
+                <form th:action="@{/empleados/{id}/eliminar(id=${e.id})}" method="post" class="d-inline"
+                      onsubmit="return confirm('¿Desea eliminar este empleado?');">
+                    <button class="btn btn-sm btn-danger">Eliminar</button>
+                </form>
+            </td>
+        </tr>
+        <tr th:if="${#lists.isEmpty(empleados)}">
+            <td colspan="9" class="text-center text-muted">No hay empleados registrados</td>
+        </tr>
+        </tbody>
+    </table>
 </div>
 </body>
 </html>
